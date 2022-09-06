@@ -1,0 +1,21 @@
+
+<%- include('partials/header'); %> 
+
+<h1>Edit Post</h1>
+
+<form action="/edit/<%=post._id%>" method="POST">
+    <div class="form-group">
+        <label for="titleText">Title</label>
+        <input type="text" name="titleText" id="titleText" class="form-control" autocomplete="off" required="true" value ="<%=post.postTitle%>" >
+    </div>
+
+    <div class="form-group">
+        <label for="postText">Post</label>
+        <textarea name="postText" id="postText" rows="10" class="form-control" autocomplete="off" required="true"><%=post.postContent%></textarea> 
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+
+</form>
+
+<%- include('partials/footer'); %> 

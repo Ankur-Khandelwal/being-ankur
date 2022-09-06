@@ -1,0 +1,15 @@
+<%- include('partials/header'); %> 
+
+<h2>Home</h2>
+<p><%=hContent%></p>
+<div class="postParentDiv">
+    <% bPosts.slice().reverse().forEach(function(data){ %>
+        <div class="postBox">
+            <h4><%=data.postTitle%></h4><span class="date"><i><%= " "+String(data.postDate).slice(4,15) %></i></span>
+            <p><%=data.postContent.slice(0,250)+"..."%> <a href="/posts/<%=data._id%>">Read More</a></p>
+        </div>
+    <%  }); %>
+</div>
+
+
+<%- include('partials/footer'); %> 

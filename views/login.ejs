@@ -1,0 +1,24 @@
+<%- include('partials/header'); %> 
+
+<div class="login-card">
+    <form action="/login" method="POST">
+        <h4>Login</h4>
+        <input type="email" class="authInput" name="email" placeholder="Email"><br>
+        <input type="password" class="authInput" name="password" placeholder="Password"><br>
+        <button type="submit" class="authInput" class="login-button">Log In</button>
+    </form>
+    <a href="/auth/google">
+        <div class="g-signin-btn">
+            <i class="fab fa-google"></i>
+            &nbsp;
+            Sign in with Google
+        </div>  
+    </a>
+    
+    <div class="serverMessage"><%=serverMessage%></div>
+</div>
+
+<%- include('partials/footer'); %> 
+
+
+        

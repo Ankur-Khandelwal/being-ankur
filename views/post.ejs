@@ -1,0 +1,47 @@
+<%- include('partials/header'); %> 
+
+
+<div class="postPageHeading">
+    <h1> <%=post.postTitle%> </h1>
+    <div class="date-love-box">
+       <i class="date"><%= " "+String(post.postDate).slice(4,15) %></i>
+            <div class="love-icon-count">
+                    <button class="borderlessButton" id="love-<%=post._id%>" onclick="love(event)"><i class="far fa-heart loveIcon"></i></button>
+                    <span id="loveCountNumber-<%=post._id%>"><%=post.postLoveCount%></span>
+            </div>
+    </div>
+    
+</div>
+
+
+<p class="postContent"><%=post.postContent%></p>
+<a href="/edit/<%=post._id%>"><i class="far fa-edit editIcon" title="Edit Post"></i></a>
+
+<div class="commentSection">
+    <h4>Add Comment</h4>
+    <form action="/posts/comment/<%=post._id%>" method="POST">
+    <div class="commentInput">
+        <textarea name="comment" class="commentTextArea" placeholder="Show your Love :)"></textarea>
+        <button class="commentButton" type="submit">Post</button>
+    </div>
+    </form>
+
+    <div class="postedComments" id="postedComments-<%=post._id%>">
+        <% post.postComments.slice().reverse().forEach(function(comment){ %>
+            <div class="comment-card">
+                <b><p class="comment-author"><%=comment.commentedByName%></p></b>
+               <div class="comment-content">
+                <p><%=comment.commentContent%></p>
+                <form action="/posts/comment/delete/<%=post._id%>" method="POST" class="deleteCommentForm">
+                    <input type="hidden" name="commentAuthorId" value="<%=comment.commentedById%>">
+                   <button name="deleteCommentId" value=<%=comment._id%> <%=comment.commentedById%> class="borderlessButton deleteCommentButton"> <i class="far fa-trash-alt fa-xs deleteIcon" title="Delete Comment"></i></button>
+                </form>
+               </div>
+                
+            </div>
+         <%  }); %> 
+        
+    </div>
+</div>
+
+<%- include('partials/footer'); %> 

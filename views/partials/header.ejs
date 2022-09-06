@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>Ankur Khandelwal</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.3/css/all.css"
+    integrity="sha384-SZXxX4whJ79/gErwcOYf+zWLeJdY/qpuqC4cAa9rOGUstPomtqpuNWT9wdPEn2fk" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    window.onload = function () {
+      var date = new Date();
+      var year = date.getFullYear();
+      document.getElementById('year').innerHTML = year;
+      loggedInCheck()
+    }
+
+    //LIKE FUNCTIONALITY
+    function love(event) {
+      const postId = event.target.parentElement.id.slice(5);
+      const url = `/love/${postId}`;
+      fetch(url,
+        {
+          method: 'POST'
+        }
+      )
+        .then(response => response.json())
+        .then(json => {
+          document.getElementById(`loveCountNumber-${postId}`).innerText = json.loveCount;
+        })
+    }
+
+    //LOGGED IN CHECK
+    function loggedInCheck() {
+      const url = '/loggedin';
+      fetch(url, { method: 'GET' })
+        .then(response => response.json())
+        .then(json => {
+          if (json.loggedin) {
+            let logButton = document.getElementById('log-btn')
+            logButton.innerHTML = `<a href="/logout">LOGOUT</a>`;
+            console.log("Hey");
+          }
+          else { console.log("Yo"); }
+        })
+    }
+
+
+  </script>
+  <nav class="navbar navbar-default">
+    <div class="container nav-container">
+      <div class="navbar-header">
+        <a href="/">
+          <p class="navbar-brand">ANKUR KHANDELWAL</p>
+        </a>
+      </div>
+      <ul class="nav navbar-nav navbar-right" id="navbar">
+
+        <li class="nav-item" id="home"><a href="/">HOME</a></li>
+        <li class="nav-item" id="about"><a href="/about">ABOUT</a></li>
+        <li class="nav-item" id="contact"><a href="/contact">CONTACT</a></li>
+        <li class="nav-item" id="log-btn"><a href="/login">LOGIN</a></li>
+      </ul>
+
+      <div class="dropdown">
+        <button class="dropbtn">PAGES</button>
+        <div class="dropdown-content">
+          <ul class="dropdown-list">
+            <li id="home"><a href="/">HOME</a></li>
+            <li id="about"><a href="/about">ABOUT</a></li>
+            <li id="contact"><a href="/contact">CONTACT</a></li>
+            <li id="log-btn"><a href="/login">LOGIN</a></li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </nav>
+<body>
+  <div class="container">
+
