@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
-const passport = require("passport");
-const passportLocalMongoose = require("passport-local-mongoose");
-const findOrCreate = require('mongoose-findorcreate');
+// Version 9 exposes a default export even when loaded through CommonJS.
+const passportLocalMongoose = require("passport-local-mongoose").default;
 
 const userSchema = new mongoose.Schema({
   name: String,
@@ -14,10 +13,8 @@ const userSchema = new mongoose.Schema({
 })
 
 userSchema.plugin(passportLocalMongoose, {usernameField: "email"});
-userSchema.plugin(findOrCreate);
 
 const User = mongoose.model("User", userSchema);
-passport.use(User.createStrategy());
 
 module.exports = {
   User: User,

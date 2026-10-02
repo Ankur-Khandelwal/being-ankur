@@ -1,86 +1,76 @@
+require("dotenv").config();
+
 const express = require("express");
-const mongoose = require('mongoose');
-const env = require("dotenv");
+const mongoose = require("mongoose");
 const session = require("express-session");
-const passport = require("passport");
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
-// const Comment = require("./models/postComment");
-const {User} = require("./models/user");
+const { Passport } = require("passport");
+const { configurePassport } = require("./config/passport");
+
 const postRoute = require("./routes/post");
 const composeRoute = require("./routes/compose");
-const authRoute = require("./routes/auth");
+const createAuthRouter = require("./routes/auth");
 const navRoute = require("./routes/nav");
 
-const app = express();
-
-env.config();
-const db_user = process.env.DB_USER;
-const db_pwd = process.env.DB_PWD;
-// const port = process.env.port;
-
-app.set('view engine', 'ejs');
-
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public"));
-
-app.use(session({
-  secret: process.env.SECRET,
-  resave: false,
-  saveUninitialized: false,
-}))
-app.use(passport.initialize());
-app.use(passport.session());
-
-mongoose.connect(`mongodb+srv://${db_user}:${db_pwd}@cluster0.ooavl.mongodb.net/blogDB?retryWrites=true&w=majority`,
-  {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    // useCreateIndex: true,
+// Creating the app separately lets tests use an isolated database and HTTP server.
+function createApp({
+  sessionSecret = process.env.SECRET,
+  clientID = process.env.CLIENT_ID,
+  clientSecret = process.env.CLIENT_SECRET,
+  callbackURL = process.env.GOOGLE_CALLBACK_URL ||
+    "https://being-ankur.onrender.com/auth/google/ankurblog",
+  passport = new Passport(),
+} = {}) {
+  if (!sessionSecret || !clientID || !clientSecret) {
+    throw new Error("SECRET, CLIENT_ID and CLIENT_SECRET must be configured.");
   }
-).then(() => { console.log("Database Connected."); });
 
-app.use("/",postRoute);
-app.use("/",composeRoute);
-app.use("/", authRoute);
-app.use("/", navRoute);
+  configurePassport(passport, { clientID, clientSecret, callbackURL });
 
+  const app = express();
+  app.set("view engine", "ejs");
+  app.use(express.urlencoded({ extended: true }));
+  app.use(express.static("public"));
+  app.use(session({ secret: sessionSecret, resave: false, saveUninitialized: false }));
+  app.use(passport.initialize());
+  app.use(passport.session());
 
-passport.serializeUser(function(user, done) {
-  done(null, user.id);
-});
+  app.use(postRoute);
+  app.use(composeRoute);
+  app.use(createAuthRouter(passport));
+  app.use(navRoute);
 
-passport.deserializeUser(function(id, done) {
-  User.findById(id, function(err, user) {
-    done(err, user);
+  app.use((req, res) => res.status(404).render("pg404"));
+
+  // Express 5 forwards rejected async route promises here automatically.
+  app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+    const status = error.name === "CastError" || error.name === "ValidationError"
+      ? 400 : 500;
+    res.status(status).render("errorPage", { errorMessage: error.message });
   });
-});
-
-passport.use(new GoogleStrategy({
-  clientID: process.env.CLIENT_ID,
-  clientSecret: process.env.CLIENT_SECRET,
-  // callbackURL: "http://localhost:3000/auth/google/ankurblog",
-  callbackURL: "https://being-ankur.onrender.com/auth/google/ankurblog",
-  userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
-},
-function(accessToken, refreshToken, profile, cb) {
-  User.findOrCreate({ googleId: profile.id, name: profile.displayName }, function (err, user) {
-    return cb(err, user);
-  });
-}
-));
-
-let port = process.env.PORT;
-if (port == null || port == "") {
-  port = 3000;
+  return app;
 }
 
-app.listen(port, function () {
-  console.log(`Server started on port ${port}`);
-});
+async function startServer() {
+  const app = createApp();
+  let uri = process.env.MONGODB_URI;
+  if (!uri) {
+    const { DB_USER, DB_PWD } = process.env;
+    if (!DB_USER || !DB_PWD) throw new Error("Configure MONGODB_URI or DB_USER and DB_PWD.");
+    // Keep existing Render credentials working while allowing a local database.
+    uri = `mongodb+srv://${encodeURIComponent(DB_USER)}:${encodeURIComponent(DB_PWD)}@cluster0.ooavl.mongodb.net/blogDB?retryWrites=true&w=majority`;
+  }
+  await mongoose.connect(uri);
+  const port = process.env.PORT || 3000;
+  return app.listen(port, () => console.log(`Server started on port ${port}`));
+}
 
+if (require.main === module) {
+  startServer().catch(async (error) => {
+    console.error(`Unable to start server: ${error.message}`);
+    await mongoose.disconnect();
+    process.exitCode = 1;
+  });
+}
 
-
-app.get('/logout', (req, res)=>{
-  req.logout();
-  res.redirect('/');
-})
+module.exports = { createApp, startServer };

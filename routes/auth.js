@@ -1,79 +1,98 @@
 const express = require("express");
-const router = express.Router();
-const {User} = require("../models/user");
-const passport = require("passport");
+const { User } = require("../models/user");
 
-let postId = "";
-let loginActionId = "";
+module.exports = function createAuthRouter(passport) {
+  const router = express.Router();
 
-//GOOGLE SIGNIN 
-router.get('/auth/google', passport.authenticate("google", {scope: ['profile']}));
+  // Share the same login completion flow for Google and email/password login.
+  function authenticate(strategy) {
+    return (req, res, next) => {
+      // Passport regenerates the session at login, so preserve the destination first.
+      const destination = req.session.returnTo || "/";
 
-router.get('/auth/google/ankurblog', 
- passport.authenticate("google", {failureRedirect: "/login"}),
- function(req, res){
-  //  document.getElementById('log-btn').innerText = "LOGOUT";
-  if(loginActionId==="compose") res.redirect("/compose");
-  else if(loginActionId==="comment") res.redirect(`/posts/${postId}`);
-  else{
-    if(postId==="") res.redirect("/");
-    else res.redirect(`/edit/${postId}`);
+      passport.authenticate(strategy, (error, user) => {
+        if (error) return next(error);
+
+        if (!user) {
+          return res.status(401).render("login", {
+            serverMessage: "Unable to log in."
+          });
+        }
+
+        // With a custom authenticate callback, we must establish the login session ourselves.
+        req.logIn(user, (loginError) => {
+          if (loginError) return next(loginError);
+
+          res.redirect(destination);
+        });
+        // authenticate() returns middleware; invoke it with this request and response.
+      })(req, res, next);
+    };
   }
- }
-)
 
-//SIGNUP
-router.get('/signup', (req, res)=>{
-  res.render("signup", {serverMessage: ""});
-})
+  // GET /auth/google: Redirect the visitor to Google to begin sign-in.
+  router.get("/auth/google", passport.authenticate("google", {
+    scope: ["profile"]
+  }));
 
-router.post('/signup', (req, res)=>{
-  User.register({name: req.body.name, email: req.body.email}, req.body.password, function(err, user){
-    if(err) {
-     res.render("errorPage",{errorMessage: err});
+  // GET /auth/google/ankurblog: Complete Google sign-in and redirect to the saved destination.
+  router.get("/auth/google/ankurblog", authenticate("google"));
+
+  // GET /signup: Display the account registration form.
+  router.get("/signup", (req, res) => {
+    res.render("signup", { serverMessage: "" });
+  });
+
+  // POST /signup: Create an email/password account, then redirect to the login page.
+  router.post("/signup", async (req, res) => {
+    // register() hashes the password and saves the user through passport-local-mongoose.
+    await User.register(
+      { name: req.body.name, email: req.body.email },
+      req.body.password
+    );
+
+    const message = "You have successfully registered. Now you can log in.";
+
+    res.redirect(`/login?msg=${encodeURIComponent(message)}`);
+  });
+
+  // GET /login: Display the login form and remember where to send the visitor after login.
+  router.get("/login", (req, res) => {
+    const { action, pId } = req.query;
+    let destination = "/";
+
+    // Build only internal destinations, accepting post IDs with MongoDB's 24-hex format.
+    if (action === "compose") {
+      destination = "/compose";
+    } else if (typeof pId === "string" && /^[a-f0-9]{24}$/i.test(pId)) {
+      destination = action === "comment" ? `/posts/${pId}` : `/edit/${pId}`;
     }
-    else{
-      const message = "You have successfully registered. Now you can log in."
-      res.redirect("/login?msg="+message);
-    }
-  })
-})
 
+    // Keep the destination in this visitor's session, not in a variable shared by all users.
+    req.session.returnTo = destination;
 
+    res.render("login", {
+      serverMessage: typeof req.query.msg === "string" ? req.query.msg : ""
+    });
+  });
 
-//LOGIN
-router.get('/login', (req, res)=>{
-  const message = req.query.msg || "";
-  loginActionId = req.query.action || "";
-  postId = req.query.pId || ""; //if pId is not passed, then postId becomes undefined. || operator is used to check whether pId is passed or not. 
-  res.render("login", {serverMessage: message});
-})
+  // POST /login: Verify email/password credentials, establish a session, and redirect.
+  router.post("/login", authenticate("local"));
 
-router.post('/login', (req, res)=>{
-  const user = new User({
-    email: req.body.email,
-    password: req.body.password
-  })
-  req.login(user, (error)=>{
-    if(error) res.render("errorPage", {errorMessage: error});
-    else{
-      passport.authenticate("local")(req, res, function(){
-        if(loginActionId==="compose") res.redirect("/compose");
-        if(loginActionId==="comment") res.redirect(`/posts/${postId}`);
-        if(postId==="") res.redirect("/");
-        else res.redirect(`/edit/${postId}`);
-      })
-    }
-  })
-})
+  // GET /loggedin: Return the current visitor's login status as JSON.
+  router.get("/loggedin", (req, res) => {
+    res.json({ loggedin: req.isAuthenticated() });
+  });
 
-//LOGGEDIN CHECK
-router.get('/loggedin', (req, res)=>{
-  if(req.isAuthenticated()) {
-    res.json({loggedin: true});
-  }
-  else res.json({loggedin: false});
-});
+  // GET /logout: End the visitor's authenticated session and redirect to the home page.
+  router.get("/logout", (req, res, next) => {
+    // The callback is mandatory in current Passport versions.
+    req.logout((error) => {
+      if (error) return next(error);
 
+      res.redirect("/");
+    });
+  });
 
-module.exports = router;
+  return router;
+};
